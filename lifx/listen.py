@@ -4,6 +4,8 @@ import socket
 from . import packetcodec
 from binascii import hexlify
 
+debug = True
+
 def main():
     UDP_IP = "0.0.0.0"
     UDP_PORT = 56700

@@ -7,6 +7,8 @@ from time import time
 
 from . import packetcodec
 
+debug = True
+
 IP = '0.0.0.0'
 BCAST = '255.255.255.255'
 PORT = 56700

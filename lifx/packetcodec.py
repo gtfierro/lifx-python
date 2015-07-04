@@ -4,6 +4,8 @@ from binascii import hexlify as tohex
 
 from .lifxconstants import *
 
+debug = True
+
 BCAST = b'\00\00\00\00\00\00'
 
 class Packet:

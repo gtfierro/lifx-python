@@ -7,6 +7,8 @@ from binascii import hexlify, unhexlify
 from datetime import datetime
 import struct
 
+debug = True
+
 lights = {}
 
 def inttohex(n):
