@@ -4,7 +4,7 @@ from binascii import hexlify as tohex
 
 from .lifxconstants import *
 
-debug = True
+debug = False
 
 BCAST = b'\00\00\00\00\00\00'
 

@@ -1,6 +1,3 @@
-import lifx
+from lifx import *
 
-addr = b'\00\00\00\00\00\00'
-
-lifx.set_power(lifx.BCAST, False)
-
+lifx.set_power(lifx.ALL, False)

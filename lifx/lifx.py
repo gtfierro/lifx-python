@@ -7,7 +7,9 @@ from binascii import hexlify, unhexlify
 from datetime import datetime
 import struct
 
-debug = True
+debug = False
+
+ALL = b"\00\00\00\00\00\00"
 
 ALL = b"\00\00\00\00\00\00"
 
