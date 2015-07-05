@@ -9,14 +9,17 @@ import struct
 
 debug = True
 
+ALL = b"\00\00\00\00\00\00"
+
 lights = {}
 
 def inttohex(n):
-    return str(hexlify(struct.pack('>H', n)), encoding='utf-8')
+    return str(hexlify(struct.pack('>H', n)))
 
 class LIFXBulb:
     def __init__(self, lightstatus):
         self.recv_lightstatus(lightstatus)
+        self.__str__()
 
     def __str__(self):
         return "<LIFXBulb %s hue:%s sat:%s bright:%s kelvin:%s on:%s>" % \
@@ -28,7 +31,7 @@ class LIFXBulb:
                 self.power)
 
     def get_addr(self):
-        return str(hexlify(self.addr), encoding='utf-8')
+        return str(hexlify(self.addr))
 
     def deliverpacket(self, packet):
         if isinstance(packet.payload, packetcodec.LightStatusPayload):
@@ -55,8 +58,7 @@ class LIFXBulb:
             self.power = True
         else:
             self.power = False
-        self.bulb_label = str(lightstatus.payload.data['bulb_label'],
-                              encoding='utf-8').strip('\00')
+        self.bulb_label = str(lightstatus.payload.data['bulb_label']).strip('\00')
         self.tags = lightstatus.payload.data['tags']
 
     def recv_powerstate(self, powerstate):
@@ -88,6 +90,7 @@ class LIFXBulb:
         clear_buffer()
         p = packetcodec.Packet(packetcodec.GetLightStatePayload())
         p.target = self.addr
+        p.proto = 0x1400
         network.sendpacket(p)
         listen_and_interpret(5, packetcodec.LightStatusPayload, self.addr)
 
@@ -102,6 +105,7 @@ class LIFXBulb:
         clear_buffer()
         p = packetcodec.Packet(packetcodec.GetBulbLabelPayload())
         p.target = self.addr
+        p.proto = 0x1400
         network.sendpacket(p)
         listen_and_interpret(5, packetcodec.BulbLabelPayload, self.addr)
 
@@ -115,6 +119,7 @@ class LIFXBulb:
         p = packetcodec.Packet(packetcodec.SetBulbLabelPayload())
         p.payload.data['bulb_label'] = label
         p.target = self.addr
+        p.proto = 0x1400
         network.sendpacket(p)
         clear_buffer()
 
@@ -124,6 +129,7 @@ class LIFXBulb:
     def get_time(self):
         p = packetcodec.Packet(packetcodec.GetTimeStatePayload())
         p.target = self.addr
+        p.proto = 0x1400
         clear_buffer()
         network.sendpacket(p)
         listen_and_interpret(5, packetcodec.TimeStatePayload, self.addr)
@@ -131,6 +137,7 @@ class LIFXBulb:
     def get_version(self):
         p = packetcodec.Packet(packetcodec.GetVersionPayload())
         p.target = self.addr
+        p.proto = 0x1400
         clear_buffer()
         network.sendpacket(p)
         listen_and_interpret(5, packetcodec.VersionStatePayload, self.addr)
@@ -138,6 +145,7 @@ class LIFXBulb:
     def get_info(self):
         p = packetcodec.Packet(packetcodec.GetInfoPayload())
         p.target = self.addr
+        p.proto = 0x1400
         clear_buffer()
         network.sendpacket(p)
         listen_and_interpret(5, packetcodec.InfoStatePayload, self.addr)
@@ -157,6 +165,8 @@ def set_color(addr, hue, saturation, brightness, kelvin, fade_time):
     p.payload.data['brightness'] = brightness
     p.payload.data['kelvin'] = kelvin
     p.payload.data['fade_time'] = fade_time
+    if addr != b"\00\00\00\00\00\00":
+        p.proto = 0x1400
     p.target = addr
     network.sendpacket(p)
     clear_buffer()
@@ -166,10 +176,14 @@ def set_power(addr, power):
     clear_buffer()
     p = packetcodec.Packet(packetcodec.SetPowerStatePayload())
     p.target = addr
+    if addr != b"\00\00\00\00\00\00":
+        p.proto = 0x1400
     if power:
         p.payload.data['onoff'] = 0x0001
     else:
         p.payload.data['onoff'] = 0x0000
+    if debug:
+        print("Packet: %r" % p.__str__())
     network.sendpacket(p)
 
 def pause(sec):
@@ -190,7 +204,23 @@ def get_lights():
     p = packetcodec.Packet(packetcodec.GetLightStatePayload())
     network.sendpacket(p)
     listen_and_interpret(2)
+    if debug:
+        for light in lights:
+            print("Label: %r" % lights[light].bulb_label)
+            print("Tag:   %r" % lights[light].tags)
     return list(lights.values())
+
+def with_label(label):
+    global lights
+    if debug:
+        print("Finding a light for label: %r" % label)
+    for light in lights:
+        if lights[light].bulb_label == label:
+            return lights[light].addr
+    return None
 
 def clear_buffer():
     listen_and_interpret(0.05)
+    
+def pause(time):
+    listen_and_interpret(time)

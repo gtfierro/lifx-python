@@ -2,63 +2,91 @@
 
 import socket
 import struct
-from binascii import hexlify
+import binascii
 from time import time
 
 from . import packetcodec
-
-debug = True
 
 IP = '0.0.0.0'
 BCAST = '255.255.255.255'
 PORT = 56700
 
-targetaddr = None
+targetaddr = []
 connection = None
-debug = False
+debug = True
 site = b'\00\00\00\00\00\00'
 
-def connect():
-    global connection, site, targetaddr
-    udpsock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    udpsock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-    udpsock.bind((IP, PORT))
+SCAN_TIMEOUT = 2
+
+def connect(timeout = SCAN_TIMEOUT):
+    global connection, targetaddr, site
+    
+    if debug:
+        print("Attempting to connect...")
+    
+    #Set up the UDP socket for communications.
+    udpSock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    udpSock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+    udpSock.bind((IP, PORT))
+    
+    #Generate and send the GetPANGateway packet to find bulbs. Send it 5 times for luck.
     p = packetcodec.Packet(packetcodec.GetPANGatewayPayload())
-    for x in range(5):
-        udpsock.sendto(p.__bytes__(), (BCAST, PORT))
-    while True:
-        data, addr = udpsock.recvfrom(1024)
-        packet = packetcodec.decode_packet(data)
-        if packet is not None and \
-                isinstance(packet.payload, packetcodec.PANGatewayPayload):
-            break
-    #udpsock.close()
+    
+    for i in range(5):
+        udpSock.sendto(p.__bytes__(), (BCAST, PORT))
+    
+    #We check that we get at least one PAN gateway back - with the new firmware there will be several
+    udpSock.settimeout(0.1)
+    
+    startTime = time()
+    
+    packets = []
+    
     if debug:
-        print( 'found light: %s' % (addr[0], ))
-    #tcpsock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    #tcpsock.settimeout(2.0)
-    #tcpsock.connect(addr)
-    #connection = tcpsock
-    targetaddr = addr
-    udpsock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 0)
-    udpsock.settimeout(0.1)
-    connection = udpsock
+        print("Starting network scan...")
+    
+    while time() - startTime < timeout:
+        try:
+            data, addr = udpSock.recvfrom(1024)
+            packet = packetcodec.decode_packet(data)
+            packet.ipAddress = addr[0]
+            if packet is not None and isinstance(packet.payload, packetcodec.PANGatewayPayload):
+                packets.append(packet)
+                targetaddr.append(addr)
+                if debug:
+                    print("Found a light at %r" % packet.ipAddress)
+        except socket.timeout:
+            pass
+        
+    if debug:
+        for p in packets:
+            print("Found a light at %r" % p.ipAddress)
+        
+    udpSock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 0)
+    
+    connection = udpSock
+    
     site = packet.site
+    
     if debug:
-        print( 'connection established with %s' % (unicode(hexlify(site),
-                                                      encoding='utf-8')))
+        print('Established a connection with %r' % binascii.hexlify(site))
 
 def sendpacket(p):
-    global connection, site, targetaddr
+    global connection, targetaddr, site
+    
     if connection is None:
         connect()
+        
+    connection.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 0)
+    
     p.site = site
-    if debug:
-        print('sendpacket:  ', p)
-        print('IP:  ', targetaddr[0])
-        print('Port:  ', targetaddr[1])
-    #connection.sendall(bytes(p))
-    connection.sendto(bytes(p), targetaddr)
+        
+    for thisGateway in targetaddr:
+        if debug:
+            print("Send packet:  %r" % binascii.hexlify(p.__bytes__()))
+            print("IP:           %r" % thisGateway[0])
+            print("Port:         %r" % thisGateway[1])
+        connection.sendto(p.__bytes__(), thisGateway)
 
 def recvpacket(timeout = None):
     global connection
