@@ -10,3 +10,4 @@ lifx.get_lights()
 for light in lifx.lights:
     lifx.set_power(lifx.lights[light].addr, True)
     time.sleep(1)
+    
