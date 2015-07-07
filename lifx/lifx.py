@@ -11,8 +11,6 @@ debug = False
 
 ALL = b"\00\00\00\00\00\00"
 
-ALL = b"\00\00\00\00\00\00"
-
 lights = {}
 
 def inttohex(n):
