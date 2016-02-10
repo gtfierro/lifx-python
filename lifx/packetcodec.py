@@ -22,9 +22,9 @@ class Packet:
 
     def __str__(self):
         return('<packet proto:%s, target:%s, site:%s, type:%s>' %
-               (unicode(tohex(pack('>H', self.proto)), encoding='utf-8'),
-                unicode(tohex(self.target), encoding='utf-8'),
-                unicode(tohex(self.site), encoding='utf-8'),
+               (str(tohex(pack('>H', self.proto)), encoding='utf-8'),
+                str(tohex(self.target), encoding='utf-8'),
+                str(tohex(self.site), encoding='utf-8'),
                 self.payload.name ))
 
     def __bytes__(self):
